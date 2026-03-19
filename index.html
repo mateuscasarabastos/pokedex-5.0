@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokédex Interativa</title>
+    <style>
+        :root {
+            --pokedex-red: #ff1f1f;
+            --pokedex-dark-red: #a50a0a;
+            --screen-bg: #222;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #3e3e3e;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text-color);
+        }
+
+        .pokedex {
+            background-color: var(--pokedex-red);
+            width: 100%;
+            max-width: 450px;
+            border-radius: 20px;
+            border: 10px solid var(--pokedex-dark-red);
+            box-shadow: 0 10px 0 #555;
+            overflow: hidden;
+            padding-bottom: 20px;
+        }
+
+        .search-container {
+            padding: 20px;
+            display: flex;
+            gap: 5px;
+            background: var(--pokedex-dark-red);
+        }
+
+        input {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        button {
+            padding: 8px 15px;
+            cursor: pointer;
+            border: none;
+            background: #ffcc00;
+            color: #000;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+
+        .screen {
+            background: #fff;
+            margin: 15px;
+            border-radius: 10px;
+            border: 5px solid #bdc3c7;
+            padding: 15px;
+            min-height: 400px;
+        }
+
+        .hidden { display: none; }
+
+        #pk-image {
+            width: 150px;
+            height: 150px;
+            display: block;
+            margin: 0 auto;
+            image-rendering: pixelated;
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 4px;
+            color: white;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        /* Cores de tipos */
+        .normal { background: #A8A878; } .fire { background: #F08030; }
+        .water { background: #6890F0; } .grass { background: #78C850; }
+        .electric { background: #F8D030; } .ice { background: #98D8D8; }
+        .fighting { background: #C03028; } .poison { background: #A040A0; }
+        .ground { background: #E0C068; } .flying { background: #A890F0; }
+        .psychic { background: #F85888; } .bug { background: #A8B020; }
+        .rock { background: #B8A038; } .ghost { background: #705898; }
+        .dragon { background: #7038F8; } .dark { background: #705848; }
+        .steel { background: #B8B8D0; } .fairy { background: #EE99AC; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+
+        .evo-chain {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+
+        .evo-item { text-align: center; cursor: pointer; }
+        .evo-item img { width: 60px; }
+        .evo-item p { font-size: 10px; margin: 0; }
+
+        .effectiveness {
+            font-size: 13px;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .shiny-toggle {
+            display: block;
+            margin: 10px auto;
+            font-size: 12px;
+            background: #eee;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+<div class="pokedex">
+    <div class="search-container">
+        <input type="text" id="pokemonInput" placeholder="Nome ou ID...">
+        <button onclick="buscar()">BUSCAR</button>
+    </div>
+
+    <div id="content" class="screen hidden">
+        <h2 id="pk-name" style="text-align:center; margin:0;"></h2>
+        <div id="pk-types" style="text-align:center;"></div>
+        
+        <img id="pk-image" src="" alt="Pokemon">
+        <button class="shiny-toggle" onclick="toggleShiny()">Mudar para Shiny</button>
+
+        <div class="stats-grid" id="pk-stats"></div>
+
+        <div class="effectiveness">
+            <strong>Fraquezas:</strong> <span id="pk-weakness"></span><br>
+            <strong>Resistências:</strong> <span id="pk-resistance"></span>
+        </div>
+
+        <h4 style="margin-bottom:5px;">Linha Evolutiva:</h4>
+        <div id="pk-evolution" class="evo-chain"></div>
+    </div>
+</div>
+
+<script>
+    let currentPokemon = null;
+    let isShiny = false;
+
+    async function buscar(nome) {
+        const input = nome || document.getElementById('pokemonInput').value.toLowerCase();
+        if (!input) return;
+
+        try {
+            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${input}`);
+            if (!res.ok) throw new Error();
+            currentPokemon = await res.json();
+            render();
+        } catch (err) {
+            alert("Pokémon não encontrado!");
+        }
+    }
+
+    function toggleShiny() {
+        isShiny = !isShiny;
+        document.querySelector('.shiny-toggle').innerText = isShiny ? "Ver Normal" : "Ver Shiny";
+        render();
+    }
+
+    async function render() {
+        document.getElementById('content').classList.remove('hidden');
+        
+        // Nome e Tipos
+        document.getElementById('pk-name').innerText = `#${currentPokemon.id} ${currentPokemon.name.toUpperCase()}`;
+        const typesContainer = document.getElementById('pk-types');
+        typesContainer.innerHTML = currentPokemon.types.map(t => 
+            `<span class="type-badge ${t.type.name}">${t.type.name}</span>`
+        ).join('');
+
+        // Imagem
+        document.getElementById('pk-image').src = isShiny ? 
+            currentPokemon.sprites.front_shiny : currentPokemon.sprites.front_default;
+
+        // Stats numéricos
+        const statsContainer = document.getElementById('pk-stats');
+        statsContainer.innerHTML = currentPokemon.stats.map(s => 
+            `<div><strong>${s.stat.name.toUpperCase()}:</strong> ${s.base_stat}</div>`
+        ).join('');
+
+        // Linha Evolutiva
+        loadEvolutions(currentPokemon.species.url);
+
+        // Fraquezas e Resistências
+        loadEffectiveness(currentPokemon.types);
+    }
+
+    async function loadEvolutions(url) {
+        const species = await (await fetch(url)).json();
+        const evoData = await (await fetch(species.evolution_chain.url)).json();
+        const container = document.getElementById('pk-evolution');
+        container.innerHTML = '';
+
+        let current = evoData.chain;
+        while (current) {
+            const id = current.species.url.split('/').filter(Boolean).pop();
+            const img = isShiny ? 
+                `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${id}.png` :
+                `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+            
+            container.innerHTML += `
+                <div class="evo-item" onclick="buscar('${current.species.name}')">
+                    <img src="${img}">
+                    <p>${current.species.name}</p>
+                </div>`;
+            current = current.evolves_to[0];
+        }
+    }
+
+    async function loadEffectiveness(types) {
+        let weaknesses = new Set();
+        let resistances = new Set();
+        let immunities = new Set();
+
+        for (const t of types) {
+            const data = await (await fetch(t.type.url)).json();
+            data.damage_relations.double_damage_from.forEach(type => weaknesses.add(type.name));
+            data.damage_relations.half_damage_from.forEach(type => resistances.add(type.name));
+            data.damage_relations.no_damage_from.forEach(type => immunities.add(type.name));
+        }
+
+        // Limpeza básica: se algo é fraqueza e resistência ao mesmo tempo, vira neutro (simplificado)
+        const finalWeakness = [...weaknesses].filter(w => !resistances.has(w) && !immunities.has(w));
+        const finalResistance = [...resistances].filter(r => !weaknesses.has(r) || immunities.has(r));
+
+        document.getElementById('pk-weakness').innerText = finalWeakness.join(', ') || 'Nenhuma';
+        document.getElementById('pk-resistance').innerText = [...finalResistance, ...immunities].join(', ') || 'Nenhuma';
+    }
+</script>
+
+</body>
+</html>
